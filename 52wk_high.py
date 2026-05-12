@@ -15,6 +15,12 @@ data = data.sort_index()
 
 data = data.loc['2009-01-01':]
 
+# 讀取台灣大盤資料作為 Benchmark
+taiex = pd.read_excel('./TAIEX.xlsx', index_col=0, parse_dates=True)
+taiex.index = pd.to_datetime(taiex.index)
+taiex = taiex.sort_index()
+taiex_returns = taiex['收盤價(元)'].pct_change()
+
 # 1. 計算前高 (過去一年最高價)
 rolling_high = data.rolling(window=ROLLING_WINDOW, min_periods=MIN_PERIODS).max()
 factor_df = data / rolling_high
@@ -23,6 +29,7 @@ daily_returns = data.pct_change()
 # 初始化用來儲存各分組日指標的串列
 summary_metrics = []
 rolling_sharpe_results = {}
+rolling_beta_results = {}
 
 # 2. 開始測試不同的分組日
 for g_day in GROUPING_DAYS:
@@ -117,6 +124,18 @@ for g_day in GROUPING_DAYS:
     rolling_std.replace(0, np.nan, inplace=True) # Avoid division by zero
     rolling_sharpe = (rolling_mean / rolling_std) * np.sqrt(ann_factor)
     rolling_sharpe_results[g_day_str] = rolling_sharpe.fillna(0)
+
+    # --- Rolling Beta Calculation ---
+    aligned_market_ret = taiex_returns.reindex(valid_res.index)
+    rolling_var = aligned_market_ret.rolling(window=rolling_window_size, min_periods=rolling_window_size).var()
+    rolling_var.replace(0, np.nan, inplace=True) # 避免除以 0 錯誤
+    
+    rolling_beta = pd.DataFrame(index=valid_res.index, columns=numeric_cols, dtype=float)
+    for col in numeric_cols:
+        rolling_cov = valid_res[col].rolling(window=rolling_window_size, min_periods=rolling_window_size).cov(aligned_market_ret)
+        rolling_beta[col] = rolling_cov / rolling_var
+        
+    rolling_beta_results[g_day_str] = rolling_beta.fillna(0)
 
     rolling_max = cum_returns.cummax()
     drawdowns = (cum_returns / rolling_max) - 1
@@ -320,6 +339,29 @@ ax.set_xlabel('Date', fontsize=12)
 ax.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5)
 ax.grid(True, linestyle='--', alpha=0.5)
 ax.legend(loc='best', fontsize=10)
+plt.tight_layout()
+
+# ==========================================
+# 繪製 Rolling Beta 比較圖 (僅顯示月底)
+# ==========================================
+print("\n正在繪製 Rolling Beta 比較圖 (Month End)...")
+
+fig_beta, ax_beta = plt.subplots(figsize=(12, 6))
+ax_beta.set_title('252-Day Rolling Beta (Month End)', fontsize=16)
+
+if 'Month_End' in rolling_beta_results:
+    df_beta = rolling_beta_results['Month_End']
+    
+    ax_beta.plot(df_beta.index, df_beta['Winner'], color='green', label=f'Winner (Top {top_pct_str})', linewidth=2)
+    ax_beta.plot(df_beta.index, df_beta['Loser'], color='red', label=f'Loser (Bottom {bottom_pct_str})', linewidth=2)
+    ax_beta.plot(df_beta.index, df_beta['W_minus_L'], color='blue', label='L/S Hedge (W - L)', linestyle='--', linewidth=2)
+
+ax_beta.set_ylabel('Rolling Beta', fontsize=12)
+ax_beta.set_xlabel('Date', fontsize=12)
+ax_beta.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5) # Zero line
+ax_beta.axhline(1, color='gray', linestyle='--', linewidth=1, alpha=0.5) # Market Beta = 1
+ax_beta.grid(True, linestyle='--', alpha=0.5)
+ax_beta.legend(loc='best', fontsize=10)
 plt.tight_layout()
 
 # 一起顯示最後的總結圖
