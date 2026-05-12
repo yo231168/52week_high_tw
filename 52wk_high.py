@@ -18,36 +18,7 @@ data = data.loc['2009-01-01':]
 # 1. 計算前高 (過去一年最高價)
 rolling_high = data.rolling(window=ROLLING_WINDOW, min_periods=MIN_PERIODS).max()
 factor_df = data / rolling_high
-
-# Top / Bottom 投組報酬計算函數
-def evaluate_strategy(group):
-    group = group.dropna()
-    if len(group) < 10: 
-        return pd.Series({'Winner': np.nan, 'Loser': np.nan, 'W_minus_L': np.nan, 'Winner_Count': np.nan, 'Loser_Count': np.nan})
-    
-    winner_threshold = group['Factor'].quantile(1 - TOP_PCT)
-    loser_threshold = group['Factor'].quantile(BOTTOM_PCT)
-    
-    winners = group[group['Factor'] >= winner_threshold]
-    losers = group[group['Factor'] <= loser_threshold]
-    
-    winner_gross = winners['Next_Ret'].mean()
-    loser_gross = losers['Next_Ret'].mean()
-    
-    # 每個月換倉的雙邊交易成本 (1 個月組合)
-    monthly_cost = 2 * COST_RATE
-    
-    winner_net = winner_gross - monthly_cost
-    loser_net = loser_gross - monthly_cost
-    w_minus_l_net = winner_gross - loser_gross - (2 * monthly_cost)
-    
-    return pd.Series({
-        'Winner': winner_net,
-        'Loser': loser_net,
-        'W_minus_L': w_minus_l_net,
-        'Winner_Count': len(winners),
-        'Loser_Count': len(losers)
-    })
+daily_returns = data.pct_change()
 
 # 初始化用來儲存各分組日指標的串列
 summary_metrics = []
@@ -73,32 +44,64 @@ for g_day in GROUPING_DAYS:
     entry_dates = data.index[entry_indices]
     grouping_dates = grouping_dates[:len(entry_dates)]
 
-    # 3. 取得分組日的 Factor 及進場日的價格
-    mid_monthly_factor = factor_df.loc[grouping_dates]
-    entry_prices = data.loc[entry_dates]
+    # 3. 初始化存放策略每日報酬的 DataFrame
+    strategy_daily_ret = pd.DataFrame(index=data.index, columns=['Winner', 'Loser', 'W_minus_L', 'Winner_Count', 'Loser_Count'], dtype=float)
 
-    # 4. 計算下期報酬 (改為不預扣成本的毛報酬 Gross Return)
-    next_period_return = (entry_prices.shift(-1) / entry_prices) - 1
-    next_period_return.index = grouping_dates 
+    # 4. 逐期計算每日報酬
+    for i in range(len(grouping_dates)):
+        g_date = grouping_dates[i]
+        e_date = entry_dates[i]
+        
+        if i < len(grouping_dates) - 1:
+            next_e_date = entry_dates[i+1]
+        else:
+            next_e_date = data.index[-1]
+            if e_date >= next_e_date:
+                continue
 
-    # 5. 轉換為長表格以便分組
-    factor_long = mid_monthly_factor.stack().reset_index()
-    factor_long.columns = ['Date', 'Ticker', 'Factor']
-    
-    return_long = next_period_return.stack().reset_index()
-    return_long.columns = ['Date', 'Ticker', 'Next_Ret']
-    
-    backtest_df = pd.merge(factor_long, return_long, on=['Date', 'Ticker'])
-
-    # 6. 計算策略報酬
-    strategy_results = backtest_df.groupby('Date').apply(evaluate_strategy)
+        # 持有期間的交易日 (不包含進場日當天)
+        holding_mask = (data.index > e_date) & (data.index <= next_e_date)
+        holding_days = data.index[holding_mask]
+        
+        if len(holding_days) == 0:
+            continue
+            
+        factors = factor_df.loc[g_date].dropna()
+        if len(factors) < 10:
+            continue
+            
+        winner_threshold = factors.quantile(1 - TOP_PCT)
+        loser_threshold = factors.quantile(BOTTOM_PCT)
+        
+        winners = factors[factors >= winner_threshold].index
+        losers = factors[factors <= loser_threshold].index
+        
+        if len(winners) > 0:
+            w_ret = daily_returns.loc[holding_days, winners].mean(axis=1).copy()
+            w_ret.iloc[0] -= COST_RATE
+            w_ret.iloc[-1] -= COST_RATE
+            strategy_daily_ret.loc[holding_days, 'Winner'] = w_ret
+            strategy_daily_ret.loc[holding_days, 'Winner_Count'] = len(winners)
+            
+        if len(losers) > 0:
+            l_ret = daily_returns.loc[holding_days, losers].mean(axis=1).copy()
+            l_ret.iloc[0] -= COST_RATE
+            l_ret.iloc[-1] -= COST_RATE
+            strategy_daily_ret.loc[holding_days, 'Loser'] = l_ret
+            strategy_daily_ret.loc[holding_days, 'Loser_Count'] = len(losers)
+            
+        if len(winners) > 0 and len(losers) > 0:
+            wml_ret = daily_returns.loc[holding_days, winners].mean(axis=1) - daily_returns.loc[holding_days, losers].mean(axis=1)
+            wml_ret.iloc[0] -= 2 * COST_RATE
+            wml_ret.iloc[-1] -= 2 * COST_RATE
+            strategy_daily_ret.loc[holding_days, 'W_minus_L'] = wml_ret
 
     numeric_cols = ['Winner', 'Loser', 'W_minus_L']
-    valid_res = strategy_results[numeric_cols].dropna()
+    valid_res = strategy_daily_ret[numeric_cols].dropna()
 
     # --- 績效計算 ---
     rf = 0
-    ann_factor = 12 # 月度資料
+    ann_factor = 252 # 改為每日資料年化因子
 
     cum_returns = (1 + valid_res).cumprod()
     total_returns = cum_returns.iloc[-1] - 1
@@ -108,7 +111,7 @@ for g_day in GROUPING_DAYS:
     sortino = (valid_res.mean() - rf) / valid_res[valid_res < 0].std() * np.sqrt(ann_factor)
 
     # --- Rolling Sharpe Calculation ---
-    rolling_window_size = 12 # 12-month rolling window
+    rolling_window_size = 252 # 252-day rolling window
     rolling_mean = valid_res[numeric_cols].rolling(window=rolling_window_size, min_periods=rolling_window_size).mean()
     rolling_std = valid_res[numeric_cols].rolling(window=rolling_window_size, min_periods=rolling_window_size).std()
     rolling_std.replace(0, np.nan, inplace=True) # Avoid division by zero
@@ -122,10 +125,12 @@ for g_day in GROUPING_DAYS:
     num_periods = len(valid_res)
     avg_holding_days = (entry_dates[1:] - entry_dates[:-1]).mean().days if len(entry_dates) > 1 else 0
 
-    avg_winner_holdings = strategy_results['Winner_Count'].mean()
-    avg_loser_holdings = strategy_results['Loser_Count'].mean()
+    avg_winner_holdings = strategy_daily_ret['Winner_Count'].dropna().mean()
+    avg_loser_holdings = strategy_daily_ret['Loser_Count'].dropna().mean()
 
-    annual_mean_returns = valid_res.groupby(valid_res.index.year).mean()
+    # 轉換為月報酬以計算各年度平均月報酬率
+    monthly_res = (1 + valid_res).resample('ME').apply(lambda x: x.prod() - 1 if len(x) > 0 else np.nan)
+    annual_mean_returns = monthly_res.groupby(monthly_res.index.year).mean()
     annual_mean_returns = annual_mean_returns[['Winner', 'Loser', 'W_minus_L']]
     annual_mean_returns.columns = ['winner_ret_mean', 'loser_ret_mean', 'wml_ret_mean']
 
@@ -301,7 +306,7 @@ plt.tight_layout()
 print("\n正在繪製 Rolling Sharpe Ratio 比較圖 (Month End)...")
 
 fig_sharpe, ax = plt.subplots(figsize=(12, 6))
-ax.set_title('12-Month Rolling Sharpe Ratio (Month End)', fontsize=16)
+ax.set_title('252-Day Rolling Sharpe Ratio (Month End)', fontsize=16)
 
 if 'Month_End' in rolling_sharpe_results:
     df_sharpe = rolling_sharpe_results['Month_End']
