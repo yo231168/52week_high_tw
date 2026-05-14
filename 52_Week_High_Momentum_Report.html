@@ -164,12 +164,13 @@
     </nav>
 
     <main class="content">
-        <h1>研究報告：52週高點與動能投資策略之實證與優化</h1>
+        <h1>台股52週高點因子投資策略回測</h1>
 
         <section id="section1">
             <h2>一、 摘要 (Abstract)</h2>
-            <p>傳統動能投資策略（Momentum Investing）多依賴個股或產業過去的歷史報酬來預測未來走勢，然而此類策略常在長期出現反轉現象。本研究基於 George 與 Hwang (2004) 的研究框架，探討一項隨手可得的公開資訊——「52週高點（52-Week High）」——是否能更有效地解釋並捕捉動能利潤。</p>
-            <p>原論文指出，當股價接近 52 週高點時，投資人會產生「錨定效應（Anchoring Bias）」，對利多消息反應不足，從而產生具備持續性且長期不反轉的價格動能。本研究不僅於實證資料中重現該因子之有效性，更進一步擴展原論文框架，納入「月中不同交易日進場之穩定性測試」、「事件研究法（月中累積報酬軌跡）」以及「動態滾動風險指標（Rolling Sharpe / Beta）」，以驗證該因子在考量真實交易成本（0.1425%）下的實戰可行性與穩健程度。</p>
+            <p>傳統動能投資策略（Momentum Investing）多依賴個股或產業過去的歷史報酬來預測未來走勢，然而此類策略常在長期出現反轉現象。本研究基於 George 與 Hwang (2004) 的研究框架，探討「52週高點（52-Week High）」因子是否在台灣上市櫃公司上一樣有作用。</p>
+            <p>原論文指出，當股價接近 52 週高點時，投資人會產生「錨定效應（Anchoring Bias）」，對利多消息反應不足，從而產生具備持續性且長期不反轉的價格動能。考量到台股散戶比例較美股為高，市場非理性行為更為普遍，尤其在網路論壇上，投資人常因股價已高而卻步，因此預期錨定效應對台股投資人心理的影響將更為嚴重。</p>
+            <p>本研究不僅於實證資料中重現該因子之有效性，更進一步擴展原論文框架，納入「月中不同交易日進場之穩定性測試」、「事件研究法（月中累積報酬軌跡）」以及「動態滾動風險指標（Rolling Sharpe / Beta）」，以驗證該因子在台股上的穩健性及曝險程度。</p>
         </section>
 
         <section id="section2">
@@ -181,7 +182,7 @@
             <ul>
                 <li><strong>突破傳統動能策略的限制</strong>：傳統由 Jegadeesh 與 Titman (1993) 提出的動能策略（買入過去 6 個月贏家、賣出輸家）雖具備中期獲利能力，但在 3 到 5 年後會遭遇顯著的價格反轉。George 與 Hwang 發現，基於 52 週高點的動能預測在長期並「不會」反轉，這暗示了短期動能與長期反轉可能是兩個獨立的現象。</li>
                 <li><strong>行為財務學的實證</strong>：投資人為何會對公開資訊反應不足？心理學中的「錨定與調整偏誤（Adjustment and anchoring bias）」指出，人們常依賴特定參考點進行決策。當股價創新高時，投資人往往以此為錨，不願用更高價格追買，這為動能策略提供了堅實的行為學基礎。</li>
-                <li><strong>實務交易的優化需求</strong>：學術論文多假設月底進場且未精細考量雙邊交易成本。本研究動機之一，是透過更嚴格的程式化回測（涵蓋不同進場日、真實手續費與滾動風險），將學術發現轉化為可落地的交易系統。</li>
+                <li><strong>實務交易的優化需求</strong>：學術論文多假設月底進場且未考量雙邊交易成本。本研究動機之一，是透過涵蓋不同進場日、真實手續費與策略曝險，測試因子的穩健性及轉化為可落地的交易系統。</li>
             </ul>
         </section>
 
@@ -199,15 +200,16 @@
             <h3>2. 投資組合建構 (Portfolio Construction)</h3>
             <ul>
                 <li><strong>分位數篩選</strong>：在每個觀測日，將全市場股票依據 <span class="math">Factor</span> 進行橫截面排序。</li>
-                <li><strong>做多組合（Winner, Top 30%）</strong>：買入比值最接近 1.0 的前 30% 股票。</li>
+                <li><strong>做多組合（Winner, Top 30%）</strong>：買入比值最高（距離高點最近）的前 30% 股票。</li>
                 <li><strong>做空組合（Loser, Bottom 30%）</strong>：放空比值最低（距離高點最遠）的後 30% 股票。</li>
-                <li><strong>多空對沖（W_minus_L）</strong>：建構買入贏家並放空輸家的零成本投資組合。組合採用等權重（Equally Weighted）配置。</li>
+                <li><strong>多空對沖（W_minus_L）</strong>：建構買入贏家並放空輸家的自融資投資組合。組合採用等權重（Equally Weighted）配置。</li>
             </ul>
 
             <h3>3. 進場機制與成本設定 (Execution & Transaction Costs)</h3>
             <ul>
-                <li><strong>進場日敏感度分析（Grouping Days）</strong>：為檢驗因子是否僅受月底機構作帳（Window Dressing）影響，本模型測試了每月第 5、10、15、20、25 個交易日及月底（ME）等 6 種不同的選股觀測日。並於觀測日之「次一交易日」以收盤價執行進場。</li>
+                <li><strong>進場日敏感度分析（Grouping Days）</strong>：本研究主要以原論文提出的月底進場回測結果為主。然而，為檢驗因子是否僅受月底機構作帳（Window Dressing）影響，亦額外測試了每月第 5、10、15、20、25 個交易日不同選股觀測日。所有進場均於觀測日之「次一交易日」以收盤價執行。</li>
                 <li><strong>交易成本</strong>：嚴格設定 <code>COST_RATE = 0.001425</code>（即千分之1.425），且於每次換倉的「期初進場」與「期末出場」各扣除一次，以真實反映台股市場的摩擦成本。</li>
+                <li><strong>無風險利率 (Risk-Free Rate)</strong>：為簡化計算，本研究設定無風險利率 <code>R<sub>f</sub> = 0</code>，用於夏普比率與索提諾比率等風險調整後報酬指標的計算。</li>
             </ul>
         </section>
 
@@ -215,7 +217,7 @@
             <h2>四、 資料範圍 (Data Scope)</h2>
             <ul>
                 <li><strong>資料頻率與來源</strong>：使用日頻率（Daily）的還原收盤價資料（Adjusted Close）。</li>
-                <li><strong>回測期間</strong>：自 2009 年 1 月 1 日起至資料庫最新日期（涵蓋金融海嘯後的完整多空循環）。</li>
+                <li><strong>回測期間</strong>：自 2009 年 1 月 1 日起至 2026 年 4 月 30 日。</li>
                 <li><strong>基準指數（Benchmark）</strong>：引入台灣加權報酬指數（TAIEX）作為大盤基準，用於計算策略的滾動系統性風險（Rolling Beta）。</li>
             </ul>
         </section>
@@ -232,17 +234,16 @@
 
         <section id="section6">
             <h2>六、 回測結果 (Backtest Results)</h2>
-            <p>根據程式碼的計算模組，回測結果將從以下幾個維度進行展示與解讀：</p>
-
             <h3>1. 核心績效與風險指標 (Performance & Risk Metrics)</h3>
             <ul>
                 <li><strong>總報酬與年化報酬 (CAGR)</strong>：比較 Winner、Loser 與 W-L 對沖組合的長期複利增長。預期 Winner 組合將顯著擊敗 Loser 組合，且 W-L 將創造穩定的正向收益。</li>
-                <li><strong>風險調整後報酬</strong>：透過夏普比率（Sharpe Ratio）與索提諾比率（Sortino Ratio）評估承擔每單位總風險與下行風險所獲得的超額報酬。</li>
-                <li><strong>最大回撤 (MDD)</strong>：觀察多空對沖組合（W-L）在 2011、2015、2020 等市場極端回檔時，是否具備抗跌保護作用。</li>
+                <li><strong>夏普比率 (Sharpe Ratio)</strong>：評估承擔每單位總風險（標準差）所獲得的超額報酬，計算方式為 <span class="math">(R<sub>p</sub> - R<sub>f</sub> ) / σ<sub>p</sub></span>，其中 <span class="math">R<sub>p</sub></span> 為投資組合平均報酬，<span class="math">R<sub>f</sub></span> 為無風險利率，<span class="math">σ<sub>p</sub></span> 為投資組合報酬標準差。</li>
+                <li><strong>索提諾比率 (Sortino Ratio)</strong>：評估承擔每單位下行風險（下行標準差）所獲得的超額報酬，計算方式為 <span class="math">(R<sub>p</sub> - R<sub>f</sub> ) / DR</span>，其中 <span class="math">R<sub>p</sub></span> 為投資組合平均報酬，<span class="math">R<sub>f</sub></span> 為無風險利率，<span class="math">DR</span> 為投資組合報酬的下行標準差。</li>
+                <li><strong>最大回撤 (MDD)</strong>：衡量多空對沖組合（W-L）從資產最高價值跌至最低價值時的「最大虧損幅度」，為計算下行風險的另一指標。</li>
             </ul>
 
             <h3>2. 進場日穩健性測試 (Entry Day Robustness)</h3>
-            <p>透過彙總比較不同 <code>GROUPING_DAYS</code> (5, 10, 15, 20, 25, ME) 的 CAGR 與 Sharpe Ratio。若各日期的績效指標呈現水平且穩定的結果，即可證明 52 週高點的「錨定效應」是持續存在於市場心理中的穩健現象，而非特定日期的流動性異常。</p>
+            <p>透過彙總比較不同 <code>GROUPING_DAYS</code> (5, 10, 15, 20, 25, 月底) 的 CAGR 與 Sharpe Ratio。若各日期的績效指標呈現水平且穩定的結果，即可證明 52 週高點的「錨定效應」是持續存在於市場心理中的穩健現象，而非特定日期的流動性異常。</p>
 
             <h3>3. 動態風險追蹤 (Rolling Metrics)</h3>
             <ul>

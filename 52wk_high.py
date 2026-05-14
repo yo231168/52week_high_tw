@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 ROLLING_WINDOW = 252
 MIN_PERIODS = 252
 COST_RATE = 0.001425 # 交易成本
-TOP_PCT = 0.3        # 做多前 30%
-BOTTOM_PCT = 0.3     # 做空後 30%
-GROUPING_DAYS = [5, 10, 15, 20, 25, 'ME'] # 測試的分組日：每月第 5, 10, 15, 20, 25 個交易日及月底
+TOP_PCT = 0.3 # 做多前 30%
+BOTTOM_PCT = 0.3 # 做空後 30%
+GROUPING_DAYS = [5, 10, 15, 20, 'ME'] # 測試的分組日：每月第 5, 10, 15, 20 個交易日及月底
 
 data = pd.read_csv('./Adjusted_Close.csv', index_col=0, parse_dates=True)
 data.index = pd.to_datetime(data.index)
