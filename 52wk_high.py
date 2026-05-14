@@ -238,6 +238,76 @@ for g_day in GROUPING_DAYS:
     ax3.set_xticks(plot_data.index)
     plt.tight_layout()
 
+
+    # ... (前面的 MDD 繪圖與 Annual Average Returns 折線圖程式碼) ...
+
+    # ==========================================
+    # 繪製事件研究法 (Intramonth Trajectory) - 僅限月底進場 (ME)
+    # ==========================================
+    if g_day == 'ME':
+        print("\n正在繪製月中累積報酬軌跡 (Event Study - Month End)...")
+        
+        # 1. 建立一個與 data.index 一樣長的 Series 來記錄「這是進場後的第幾天」
+        relative_days = pd.Series(np.nan, index=data.index, dtype=float)
+        
+        for i in range(len(grouping_dates)):
+            e_date = entry_dates[i]
+            if i < len(grouping_dates) - 1:
+                next_e_date = entry_dates[i+1]
+            else:
+                next_e_date = data.index[-1]
+            
+            # 找出這一次換股持有期間的所有交易日
+            holding_mask = (data.index > e_date) & (data.index <= next_e_date)
+            holding_idx = data.index[holding_mask]
+            
+            if len(holding_idx) > 0:
+                # 賦予 1, 2, 3... 的相對天數
+                relative_days.loc[holding_idx] = np.arange(1, len(holding_idx) + 1)
+                
+        # 2. 建立暫存 DataFrame
+        # 注意：這裡刻意使用「未扣除交易成本」的 raw_ret，以便看清楚純粹的價格動能軌跡
+        temp_ret = pd.DataFrame({
+            'Winner': raw_winner_ret,
+            'Loser': raw_loser_ret,
+            'W_minus_L': raw_winner_ret - raw_loser_ret,
+            'Relative_Day': relative_days
+        })
+        
+        # 3. 去除 NaN 後，按照「進場後第幾天」分組，計算歷史平均「每日」報酬
+        avg_trajectory = temp_ret.dropna().groupby('Relative_Day').mean()
+        
+        # 4. 計算累積軌跡 (為避免跨月天數不一的雜訊，最多取前 22 個交易日)
+        max_days = min(22, int(avg_trajectory.index.max()))
+        cum_trajectory = avg_trajectory.loc[:max_days].cumsum() * 100 # 轉成百分比
+        
+        # 5. 繪製軌跡圖
+        fig_traj, ax_traj = plt.subplots(figsize=(10, 6))
+        cum_trajectory['Winner'].plot(ax=ax_traj, color='green', label=f'Winner (Top {top_pct_str})', linewidth=2)
+        cum_trajectory['Loser'].plot(ax=ax_traj, color='red', label=f'Loser (Bottom {bottom_pct_str})', linewidth=2)
+        cum_trajectory['W_minus_L'].plot(ax=ax_traj, color='blue', label='L/S Hedge (W - L)', linestyle='--', linewidth=2)
+        
+        ax_traj.set_title('Average Intramonth Return Trajectory (Month End Entry)', fontsize=16)
+        ax_traj.set_xlabel('Trading Days Since Entry', fontsize=12)
+        ax_traj.set_ylabel('Cumulative Return (%) - Gross of Costs', fontsize=12)
+        ax_traj.axhline(0, color='black', linewidth=1)
+        ax_traj.grid(True, linestyle='--', alpha=0.6)
+        ax_traj.legend(loc='best')
+        
+        # 加上垂直輔助線，方便判斷第 5 天與第 10 天的獲利佔比
+        if max_days >= 5:
+            ax_traj.axvline(5, color='gray', linestyle=':', alpha=0.8)
+            ax_traj.text(5.2, ax_traj.get_ylim()[0]*0.9, 'Day 5', color='gray')
+        if max_days >= 10:
+            ax_traj.axvline(10, color='gray', linestyle=':', alpha=0.8)
+            ax_traj.text(10.2, ax_traj.get_ylim()[0]*0.9, 'Day 10', color='gray')
+            
+        plt.tight_layout()
+        # 儲存圖表，且不執行 plt.close() 讓它在最後能被顯示出來
+        fig_traj.savefig('ME_Event_Study_Trajectory.png', dpi=300, bbox_inches='tight')
+
+    # ==========================================
+
     # 儲存每次迴圈的指標結果以便最後繪圖
     summary_metrics.append({
         'Grouping_Day': g_day_str,

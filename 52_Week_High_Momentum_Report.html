@@ -1,0 +1,275 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>研究報告：52週高點與動能投資策略之實證與優化</title>
+    <style>
+        /* 基礎排版與色彩 */
+        body {
+            display: flex;
+            margin: 0;
+            font-family: "微軟正黑體", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.7;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+
+        /* ====== 左側導覽列 (Navigator) ====== */
+        nav.sidebar {
+            width: 280px;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            background-color: #ffffff;
+            padding: 40px 25px;
+            box-sizing: border-box;
+            border-right: 1px solid #e1e4e8;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        nav.sidebar h3 {
+            font-size: 1.25rem;
+            color: #2c3e50;
+            margin-bottom: 2rem;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+
+        nav.sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav.sidebar li {
+            margin-bottom: 12px;
+        }
+
+        nav.sidebar a {
+            text-decoration: none;
+            color: #5a6772;
+            font-size: 0.95rem;
+            display: block;
+            padding: 6px 10px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        nav.sidebar a:hover {
+            background-color: #eaf2f8;
+            color: #3498db;
+        }
+
+        /* ====== 右側內容區 ====== */
+        main.content {
+            flex: 1;
+            padding: 60px 10%;
+            background-color: #ffffff;
+            min-height: 100vh;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.02);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            color: #2c3e50;
+            margin-bottom: 2.5rem;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            color: #2980b9;
+            margin-top: 3.5rem;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+            scroll-margin-top: 40px; /* 確保跳轉後不會被頂部遮擋 */
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            color: #34495e;
+            margin-top: 2rem;
+        }
+
+        p, li {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            text-align: justify;
+        }
+
+        ul {
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        code {
+            background-color: #f1f3f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.95rem;
+        }
+
+        .math {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            font-weight: bold;
+            color: #d35400;
+        }
+
+        /* 響應式調整 */
+        @media (max-width: 1024px) {
+            nav.sidebar {
+                width: 220px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            nav.sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                border-right: none;
+                border-bottom: 1px solid #eee;
+            }
+            main.content {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <h3>研究報告目錄</h3>
+        <ul>
+            <li><a href="#section1">一、 摘要 (Abstract)</a></li>
+            <li><a href="#section2">二、 研究主題與動機</a></li>
+            <li><a href="#section3">三、 研究方法與回測設計</a></li>
+            <li><a href="#section4">四、 資料範圍</a></li>
+            <li><a href="#section5">五、 資料分析</a></li>
+            <li><a href="#section6">六、 回測結果</a></li>
+            <li><a href="#section7">七、 額外測試</a></li>
+            <li><a href="#section8">八、 未來研究方向與限制</a></li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        <h1>研究報告：52週高點與動能投資策略之實證與優化</h1>
+
+        <section id="section1">
+            <h2>一、 摘要 (Abstract)</h2>
+            <p>傳統動能投資策略（Momentum Investing）多依賴個股或產業過去的歷史報酬來預測未來走勢，然而此類策略常在長期出現反轉現象。本研究基於 George 與 Hwang (2004) 的研究框架，探討一項隨手可得的公開資訊——「52週高點（52-Week High）」——是否能更有效地解釋並捕捉動能利潤。</p>
+            <p>原論文指出，當股價接近 52 週高點時，投資人會產生「錨定效應（Anchoring Bias）」，對利多消息反應不足，從而產生具備持續性且長期不反轉的價格動能。本研究不僅於實證資料中重現該因子之有效性，更進一步擴展原論文框架，納入「月中不同交易日進場之穩定性測試」、「事件研究法（月中累積報酬軌跡）」以及「動態滾動風險指標（Rolling Sharpe / Beta）」，以驗證該因子在考量真實交易成本（0.1425%）下的實戰可行性與穩健程度。</p>
+        </section>
+
+        <section id="section2">
+            <h2>二、 研究主題與動機 (Research Topic & Motivation)</h2>
+            <h3>1. 研究主題</h3>
+            <p>本研究旨在驗證「52週高點比率（Current Price / 52-Week High）」作為選股因子之有效性，並構建多空對沖組合（Long Winners / Short Losers），以評估其創造超額報酬（Alpha）的能力。</p>
+
+            <h3>2. 研究動機</h3>
+            <ul>
+                <li><strong>突破傳統動能策略的限制</strong>：傳統由 Jegadeesh 與 Titman (1993) 提出的動能策略（買入過去 6 個月贏家、賣出輸家）雖具備中期獲利能力，但在 3 到 5 年後會遭遇顯著的價格反轉。George 與 Hwang 發現，基於 52 週高點的動能預測在長期並「不會」反轉，這暗示了短期動能與長期反轉可能是兩個獨立的現象。</li>
+                <li><strong>行為財務學的實證</strong>：投資人為何會對公開資訊反應不足？心理學中的「錨定與調整偏誤（Adjustment and anchoring bias）」指出，人們常依賴特定參考點進行決策。當股價創新高時，投資人往往以此為錨，不願用更高價格追買，這為動能策略提供了堅實的行為學基礎。</li>
+                <li><strong>實務交易的優化需求</strong>：學術論文多假設月底進場且未精細考量雙邊交易成本。本研究動機之一，是透過更嚴格的程式化回測（涵蓋不同進場日、真實手續費與滾動風險），將學術發現轉化為可落地的交易系統。</li>
+            </ul>
+        </section>
+
+        <section id="section3">
+            <h2>三、 研究方法與回測設計 (Methodology & Backtest Design)</h2>
+            <p>本研究結合學術理論與實務回測框架，具體設計如下：</p>
+
+            <h3>1. 因子建構 (Factor Construction)</h3>
+            <ul>
+                <li>根據原論文定義，定義因子為 <span class="math">Factor<sub>i,t</sub> = P<sub>i,t</sub> / High<sub>i,t</sub></span>。</li>
+                <li>其中 <span class="math">P<sub>i,t</sub></span> 為當日收盤價，<span class="math">High<sub>i,t</sub></span> 為過去 252 個交易日（約一年）的最高收盤價。</li>
+                <li>為了確保高點數值的穩定性，設定 <code>MIN_PERIODS = 252</code>，即個股至少須具備一年的歷史資料才會被納入計算池。</li>
+            </ul>
+
+            <h3>2. 投資組合建構 (Portfolio Construction)</h3>
+            <ul>
+                <li><strong>分位數篩選</strong>：在每個觀測日，將全市場股票依據 <span class="math">Factor</span> 進行橫截面排序。</li>
+                <li><strong>做多組合（Winner, Top 30%）</strong>：買入比值最接近 1.0 的前 30% 股票。</li>
+                <li><strong>做空組合（Loser, Bottom 30%）</strong>：放空比值最低（距離高點最遠）的後 30% 股票。</li>
+                <li><strong>多空對沖（W_minus_L）</strong>：建構買入贏家並放空輸家的零成本投資組合。組合採用等權重（Equally Weighted）配置。</li>
+            </ul>
+
+            <h3>3. 進場機制與成本設定 (Execution & Transaction Costs)</h3>
+            <ul>
+                <li><strong>進場日敏感度分析（Grouping Days）</strong>：為檢驗因子是否僅受月底機構作帳（Window Dressing）影響，本模型測試了每月第 5、10、15、20、25 個交易日及月底（ME）等 6 種不同的選股觀測日。並於觀測日之「次一交易日」以收盤價執行進場。</li>
+                <li><strong>交易成本</strong>：嚴格設定 <code>COST_RATE = 0.001425</code>（即千分之1.425），且於每次換倉的「期初進場」與「期末出場」各扣除一次，以真實反映台股市場的摩擦成本。</li>
+            </ul>
+        </section>
+
+        <section id="section4">
+            <h2>四、 資料範圍 (Data Scope)</h2>
+            <ul>
+                <li><strong>資料頻率與來源</strong>：使用日頻率（Daily）的還原收盤價資料（Adjusted Close）。</li>
+                <li><strong>回測期間</strong>：自 2009 年 1 月 1 日起至資料庫最新日期（涵蓋金融海嘯後的完整多空循環）。</li>
+                <li><strong>基準指數（Benchmark）</strong>：引入台灣加權報酬指數（TAIEX）作為大盤基準，用於計算策略的滾動系統性風險（Rolling Beta）。</li>
+            </ul>
+        </section>
+
+        <section id="section5">
+            <h2>五、 資料分析 (Data Analysis)</h2>
+            <p><em>(註：此區塊為框架保留區，待後續探索性資料分析 EDA 完成後填補)</em></p>
+            <ol>
+                <li><strong>因子分佈檢定</strong>：分析 52 週高點比率在多頭與空頭市場中的橫截面分佈（偏態與峰度變化）。</li>
+                <li><strong>共線性與相關性分析</strong>：檢驗 52 週高點因子與大盤走勢、個股波動率之間的相關性。</li>
+                <li><strong>樣本存活率</strong>：探討 <code>MIN_PERIODS=252</code> 條件下，每月符合交易資格的股票檔數變化（Winner_Count 與 Loser_Count 的時間序列特徵）。</li>
+            </ol>
+        </section>
+
+        <section id="section6">
+            <h2>六、 回測結果 (Backtest Results)</h2>
+            <p>根據程式碼的計算模組，回測結果將從以下幾個維度進行展示與解讀：</p>
+
+            <h3>1. 核心績效與風險指標 (Performance & Risk Metrics)</h3>
+            <ul>
+                <li><strong>總報酬與年化報酬 (CAGR)</strong>：比較 Winner、Loser 與 W-L 對沖組合的長期複利增長。預期 Winner 組合將顯著擊敗 Loser 組合，且 W-L 將創造穩定的正向收益。</li>
+                <li><strong>風險調整後報酬</strong>：透過夏普比率（Sharpe Ratio）與索提諾比率（Sortino Ratio）評估承擔每單位總風險與下行風險所獲得的超額報酬。</li>
+                <li><strong>最大回撤 (MDD)</strong>：觀察多空對沖組合（W-L）在 2011、2015、2020 等市場極端回檔時，是否具備抗跌保護作用。</li>
+            </ul>
+
+            <h3>2. 進場日穩健性測試 (Entry Day Robustness)</h3>
+            <p>透過彙總比較不同 <code>GROUPING_DAYS</code> (5, 10, 15, 20, 25, ME) 的 CAGR 與 Sharpe Ratio。若各日期的績效指標呈現水平且穩定的結果，即可證明 52 週高點的「錨定效應」是持續存在於市場心理中的穩健現象，而非特定日期的流動性異常。</p>
+
+            <h3>3. 動態風險追蹤 (Rolling Metrics)</h3>
+            <ul>
+                <li><strong>252-Day Rolling Sharpe / Sortino</strong>：觀察策略在不同市場週期（牛/熊市）中的績效穩定度，並透過 60 天平滑處理（Smoothed）消除短期雜訊。</li>
+                <li><strong>252-Day Rolling Beta</strong>：檢驗多空對沖組合（W-L）是否真正達到了市場中立（Market Neutral），即 Beta 值是否穩定圍繞於 0 附近。</li>
+            </ul>
+        </section>
+
+        <section id="section7">
+            <h2>七、 額外測試：事件研究法與持倉優化 (Additional Tests: Event Study)</h2>
+            <p>本研究程式碼特別針對「月底進場（ME）」加入了<strong>月中累積報酬軌跡（Intramonth Trajectory）</strong>的事件研究分析：</p>
+            <ul>
+                <li><strong>研究目的</strong>：探討動能效應在進場後的 1~22 個交易日內是如何發酵的。</li>
+                <li><strong>衡量方式</strong>：記錄每次進場後第 1 天至第 22 天的「未扣除交易成本原始平均報酬」。</li>
+                <li><strong>預期發現與應用</strong>：若 W-L 的超額報酬主要集中在進場後的前 5 或前 10 天（曲線在此後斜率趨緩或走平），這暗示實務上我們可能<strong>不需要持有滿一整個月</strong>。投資人可藉由提早獲利了結（縮短 Holding Period）來提高資金週轉率（Capital Efficiency）並降低市場曝險。</li>
+            </ul>
+        </section>
+
+        <section id="section8">
+            <h2>八、 未來研究方向與限制 (Future Directions & Limitations)</h2>
+            <ol>
+                <li><strong>(6,6) 重疊投資組合測試</strong>：目前程式碼實作為 (1,1) 策略，即每月全數換倉。未來可擴展為原論文採用的 (6,6) 重疊投資組合（Overlapping Portfolios），以降低單月換手率與交易成本對 W-L 組合的雙重侵蝕。</li>
+                <li><strong>流動性與市值過濾</strong>：本回測尚未針對股票的日均成交值或市值進行分層。未來應加入價格或成交量濾網，以確保 Bottom 30% 的 Loser 組合在實務上具有足夠的融券放空額度。</li>
+                <li><strong>結合其他因子</strong>：探討 52 週高點因子是否能與價值因子（Value）或基本面盈餘動能（Earnings Momentum）結合，形成勝率更高的多因子模型。</li>
+            </ol>
+        </section>
+    </main>
+
+</body>
+</html>
