@@ -29,6 +29,7 @@ daily_returns = data.pct_change()
 # 初始化用來儲存各分組日指標的串列
 summary_metrics = []
 rolling_sharpe_results = {}
+rolling_sortino_results = {}
 rolling_beta_results = {}
 
 # 2. 開始測試不同的分組日
@@ -40,10 +41,11 @@ for g_day in GROUPING_DAYS:
     print("="*50)
 
     # 2. 找出每個月的分組日 及進場日 (分組日 + 1)
+    idx_series = pd.Series(data.index, index=data.index)
     if g_day == 'ME':
-        grouping_dates = data.groupby([data.index.year, data.index.month]).apply(lambda x: x.index[-1])
+        grouping_dates = idx_series.groupby([data.index.year, data.index.month]).last()
     else:
-        grouping_dates = data.groupby([data.index.year, data.index.month]).apply(lambda x: x.index[min(g_day - 1, len(x)-1)])
+        grouping_dates = idx_series.groupby([data.index.year, data.index.month]).apply(lambda x: x.iloc[min(g_day - 1, len(x)-1)])
         
     grouping_dates = pd.DatetimeIndex(grouping_dates.values)
     
@@ -51,10 +53,31 @@ for g_day in GROUPING_DAYS:
     entry_dates = data.index[entry_indices]
     grouping_dates = grouping_dates[:len(entry_dates)]
 
+    # 將分組日與進場日印出至終端機方便查看
+    df_dates = pd.DataFrame({'Grouping_Date': grouping_dates, 'Entry_Date': entry_dates})
+    print(f"\n[{g_day_str}] 分組日與進場日清單：")
+    print(df_dates.to_string(index=False))
+
     # 3. 初始化存放策略每日報酬的 DataFrame
     strategy_daily_ret = pd.DataFrame(index=data.index, columns=['Winner', 'Loser', 'W_minus_L', 'Winner_Count', 'Loser_Count'], dtype=float)
 
-    # 4. 逐期計算每日報酬
+    # 4. 利用向量化優化每日報酬計算
+    # 提取所有分組日的因子
+    mid_monthly_factor = factor_df.loc[grouping_dates]
+    valid_factors_mask = mid_monthly_factor.notna().sum(axis=1) >= 10
+    valid_factors = mid_monthly_factor[valid_factors_mask]
+    
+    # 向量化計算分位數門檻
+    winner_thresh = valid_factors.quantile(1 - TOP_PCT, axis=1)
+    loser_thresh = valid_factors.quantile(BOTTOM_PCT, axis=1)
+    
+    # 產生 boolean 遮罩
+    is_winner = valid_factors.ge(winner_thresh, axis=0) & valid_factors.notna()
+    is_loser = valid_factors.le(loser_thresh, axis=0) & valid_factors.notna()
+    
+    active_g_date = pd.Series(index=data.index, dtype='datetime64[ns]')
+    cost_penalty = pd.Series(0.0, index=data.index)
+
     for i in range(len(grouping_dates)):
         g_date = grouping_dates[i]
         e_date = entry_dates[i]
@@ -73,35 +96,41 @@ for g_day in GROUPING_DAYS:
         if len(holding_days) == 0:
             continue
             
-        factors = factor_df.loc[g_date].dropna()
-        if len(factors) < 10:
-            continue
+        if valid_factors_mask.iloc[i]:
+            # 將每日映射到所屬的分組日
+            active_g_date.loc[holding_days] = g_date
             
-        winner_threshold = factors.quantile(1 - TOP_PCT)
-        loser_threshold = factors.quantile(BOTTOM_PCT)
-        
-        winners = factors[factors >= winner_threshold].index
-        losers = factors[factors <= loser_threshold].index
-        
-        if len(winners) > 0:
-            w_ret = daily_returns.loc[holding_days, winners].mean(axis=1).copy()
-            w_ret.iloc[0] -= COST_RATE
-            w_ret.iloc[-1] -= COST_RATE
-            strategy_daily_ret.loc[holding_days, 'Winner'] = w_ret
-            strategy_daily_ret.loc[holding_days, 'Winner_Count'] = len(winners)
+            # 標記成本扣除日 (期初與期末)
+            first_loc = data.index.get_loc(holding_days[0])
+            last_loc = data.index.get_loc(holding_days[-1])
+            cost_penalty.iloc[first_loc] += COST_RATE
+            cost_penalty.iloc[last_loc] += COST_RATE
             
-        if len(losers) > 0:
-            l_ret = daily_returns.loc[holding_days, losers].mean(axis=1).copy()
-            l_ret.iloc[0] -= COST_RATE
-            l_ret.iloc[-1] -= COST_RATE
-            strategy_daily_ret.loc[holding_days, 'Loser'] = l_ret
-            strategy_daily_ret.loc[holding_days, 'Loser_Count'] = len(losers)
-            
-        if len(winners) > 0 and len(losers) > 0:
-            wml_ret = daily_returns.loc[holding_days, winners].mean(axis=1) - daily_returns.loc[holding_days, losers].mean(axis=1)
-            wml_ret.iloc[0] -= 2 * COST_RATE
-            wml_ret.iloc[-1] -= 2 * COST_RATE
-            strategy_daily_ret.loc[holding_days, 'W_minus_L'] = wml_ret
+    valid_daily_indices = active_g_date.dropna().index
+    g_dates_for_daily = active_g_date.dropna().values
+    
+    winner_pos = pd.DataFrame(False, index=data.index, columns=data.columns)
+    loser_pos = pd.DataFrame(False, index=data.index, columns=data.columns)
+    
+    # 一次性賦值擴張後的 Boolean Mask
+    if len(valid_daily_indices) > 0:
+        winner_pos.loc[valid_daily_indices] = is_winner.loc[g_dates_for_daily].values
+        loser_pos.loc[valid_daily_indices] = is_loser.loc[g_dates_for_daily].values
+
+    # 計算原始每日報酬 (利用 where 將未持倉標的過濾為 NaN，再取平均)
+    w_daily_returns = daily_returns.where(winner_pos)
+    l_daily_returns = daily_returns.where(loser_pos)
+    
+    raw_winner_ret = w_daily_returns.mean(axis=1)
+    raw_loser_ret = l_daily_returns.mean(axis=1)
+    
+    # 扣除交易成本 (如果 raw_*_ret 為 NaN，減去 cost 仍為 NaN，可確保無交易日不受影響)
+    strategy_daily_ret['Winner'] = raw_winner_ret - cost_penalty
+    strategy_daily_ret['Loser'] = raw_loser_ret - cost_penalty
+    strategy_daily_ret['W_minus_L'] = raw_winner_ret - raw_loser_ret - (2 * cost_penalty)
+    
+    strategy_daily_ret['Winner_Count'] = winner_pos.sum(axis=1).replace(0, np.nan)
+    strategy_daily_ret['Loser_Count'] = loser_pos.sum(axis=1).replace(0, np.nan)
 
     numeric_cols = ['Winner', 'Loser', 'W_minus_L']
     valid_res = strategy_daily_ret[numeric_cols].dropna()
@@ -124,6 +153,13 @@ for g_day in GROUPING_DAYS:
     rolling_std.replace(0, np.nan, inplace=True) # Avoid division by zero
     rolling_sharpe = (rolling_mean / rolling_std) * np.sqrt(ann_factor)
     rolling_sharpe_results[g_day_str] = rolling_sharpe.fillna(0)
+
+    # --- Rolling Sortino Calculation ---
+    downside_returns = valid_res[numeric_cols].where(valid_res[numeric_cols] < 0)
+    rolling_downside_std = downside_returns.rolling(window=rolling_window_size, min_periods=1).std()
+    rolling_downside_std.replace(0, np.nan, inplace=True)
+    rolling_sortino = (rolling_mean / rolling_downside_std) * np.sqrt(ann_factor)
+    rolling_sortino_results[g_day_str] = rolling_sortino.fillna(0)
 
     # --- Rolling Beta Calculation ---
     aligned_market_ret = taiex_returns.reindex(valid_res.index)
@@ -322,23 +358,70 @@ plt.tight_layout()
 # ==========================================
 # 繪製 Rolling Sharpe Ratio 比較圖 (僅顯示月底)
 # ==========================================
-print("\n正在繪製 Rolling Sharpe Ratio 比較圖 (Month End)...")
+print("\n正在繪製 Rolling Sharpe & Sortino Ratio 比較圖 (Month End)...")
 
-fig_sharpe, ax = plt.subplots(figsize=(12, 6))
-ax.set_title('252-Day Rolling Sharpe Ratio (Month End)', fontsize=16)
+fig_sharpe, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
 
-if 'Month_End' in rolling_sharpe_results:
+if 'Month_End' in rolling_sharpe_results and 'Month_End' in rolling_sortino_results:
     df_sharpe = rolling_sharpe_results['Month_End']
+    df_sortino = rolling_sortino_results['Month_End']
     
-    ax.plot(df_sharpe.index, df_sharpe['Winner'], color='green', label=f'Winner (Top {top_pct_str})', linewidth=2)
-    ax.plot(df_sharpe.index, df_sharpe['Loser'], color='red', label=f'Loser (Bottom {bottom_pct_str})', linewidth=2)
-    ax.plot(df_sharpe.index, df_sharpe['W_minus_L'], color='blue', label='L/S Hedge (W - L)', linestyle='--', linewidth=2)
+    ax1.plot(df_sharpe.index, df_sharpe['Winner'], color='green', label=f'Winner (Top {top_pct_str})', linewidth=2)
+    ax1.plot(df_sharpe.index, df_sharpe['Loser'], color='red', label=f'Loser (Bottom {bottom_pct_str})', linewidth=2)
+    ax1.plot(df_sharpe.index, df_sharpe['W_minus_L'], color='blue', label='L/S Hedge (W - L)', linestyle='--', linewidth=2)
 
-ax.set_ylabel('Rolling Sharpe Ratio', fontsize=12)
-ax.set_xlabel('Date', fontsize=12)
-ax.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5)
-ax.grid(True, linestyle='--', alpha=0.5)
-ax.legend(loc='best', fontsize=10)
+    ax1.set_title('252-Day Rolling Sharpe Ratio (Month End)', fontsize=16)
+    ax1.set_ylabel('Rolling Sharpe Ratio', fontsize=12)
+    ax1.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+    ax1.grid(True, linestyle='--', alpha=0.5)
+    ax1.legend(loc='best', fontsize=10)
+
+    ax2.plot(df_sortino.index, df_sortino['Winner'], color='green', label=f'Winner (Top {top_pct_str})', linewidth=2)
+    ax2.plot(df_sortino.index, df_sortino['Loser'], color='red', label=f'Loser (Bottom {bottom_pct_str})', linewidth=2)
+    ax2.plot(df_sortino.index, df_sortino['W_minus_L'], color='blue', label='L/S Hedge (W - L)', linestyle='--', linewidth=2)
+
+    ax2.set_title('252-Day Rolling Sortino Ratio (Month End)', fontsize=16)
+    ax2.set_ylabel('Rolling Sortino Ratio', fontsize=12)
+    ax2.set_xlabel('Date', fontsize=12)
+    ax2.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+    ax2.grid(True, linestyle='--', alpha=0.5)
+    ax2.legend(loc='best', fontsize=10)
+
+plt.tight_layout()
+
+# ==========================================
+# 繪製 Smoothed Rolling Sharpe Ratio 比較圖 (僅顯示月底)
+# ==========================================
+print("\n正在繪製 Smoothed Rolling Sharpe & Sortino Ratio 比較圖 (Month End)...")
+
+fig_sharpe_smooth, (ax_s1, ax_s2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+
+if 'Month_End' in rolling_sharpe_results and 'Month_End' in rolling_sortino_results:
+    smooth_window = 60  # 使用 60 天進行平滑處理 (約一季)
+    df_sharpe_smooth = rolling_sharpe_results['Month_End'].rolling(window=smooth_window, min_periods=1).mean()
+    df_sortino_smooth = rolling_sortino_results['Month_End'].rolling(window=smooth_window, min_periods=1).mean()
+    
+    ax_s1.plot(df_sharpe_smooth.index, df_sharpe_smooth['Winner'], color='green', label=f'Winner (Top {top_pct_str})', linewidth=2)
+    ax_s1.plot(df_sharpe_smooth.index, df_sharpe_smooth['Loser'], color='red', label=f'Loser (Bottom {bottom_pct_str})', linewidth=2)
+    ax_s1.plot(df_sharpe_smooth.index, df_sharpe_smooth['W_minus_L'], color='blue', label='L/S Hedge (W - L)', linestyle='--', linewidth=2)
+
+    ax_s1.set_title(f'252-Day Rolling Sharpe Ratio (Month End) - {smooth_window} Days Smoothed', fontsize=16)
+    ax_s1.set_ylabel('Smoothed Sharpe Ratio', fontsize=12)
+    ax_s1.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+    ax_s1.grid(True, linestyle='--', alpha=0.5)
+    ax_s1.legend(loc='best', fontsize=10)
+
+    ax_s2.plot(df_sortino_smooth.index, df_sortino_smooth['Winner'], color='green', label=f'Winner (Top {top_pct_str})', linewidth=2)
+    ax_s2.plot(df_sortino_smooth.index, df_sortino_smooth['Loser'], color='red', label=f'Loser (Bottom {bottom_pct_str})', linewidth=2)
+    ax_s2.plot(df_sortino_smooth.index, df_sortino_smooth['W_minus_L'], color='blue', label='L/S Hedge (W - L)', linestyle='--', linewidth=2)
+
+    ax_s2.set_title(f'252-Day Rolling Sortino Ratio (Month End) - {smooth_window} Days Smoothed', fontsize=16)
+    ax_s2.set_ylabel('Smoothed Sortino Ratio', fontsize=12)
+    ax_s2.set_xlabel('Date', fontsize=12)
+    ax_s2.axhline(0, color='black', linestyle='-', linewidth=1, alpha=0.5)
+    ax_s2.grid(True, linestyle='--', alpha=0.5)
+    ax_s2.legend(loc='best', fontsize=10)
+
 plt.tight_layout()
 
 # ==========================================
