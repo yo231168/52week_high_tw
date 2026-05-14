@@ -19,6 +19,24 @@ data = data.loc['2009-01-01':]
 taiex = pd.read_excel('./TAIEX.xlsx', index_col=0, parse_dates=True)
 taiex.index = pd.to_datetime(taiex.index)
 taiex = taiex.sort_index()
+taiex = taiex.loc['2009-01-01':]  # 確保大盤資料範圍與策略原始資料一致
+
+# --- 計算大盤回撤以定義「股災」區間 (例如 TAIEX 回撤 > 15%) ---
+taiex_dd_series = (taiex['收盤價(元)'] / taiex['收盤價(元)'].cummax()) - 1
+crash_mask = taiex_dd_series < -0.15
+crash_periods = []
+if crash_mask.any():
+    # 尋找連續為 True 的區間起點與終點
+    diff = crash_mask.astype(int).diff().fillna(0)
+    starts = crash_mask.index[diff == 1]
+    ends = crash_mask.index[diff == -1]
+    # 處理邊界情況
+    if crash_mask.iloc[0]:
+        starts = starts.insert(0, crash_mask.index[0])
+    if crash_mask.iloc[-1]:
+        ends = ends.append(pd.Index([crash_mask.index[-1]]))
+    crash_periods = list(zip(starts, ends))
+
 taiex_returns = taiex['收盤價(元)'].pct_change()
 
 # 1. 計算前高 (過去一年最高價)
@@ -196,6 +214,11 @@ for g_day in GROUPING_DAYS:
     # --- 繪圖 (包含 MDD Subplot) ---
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
 
+    # 計算大盤在相同區間的累積報酬與 MDD 以供對照
+    aligned_taiex_ret = taiex_returns.reindex(valid_res.index).fillna(0)
+    taiex_cum = (1 + aligned_taiex_ret).cumprod()
+    taiex_dd = (taiex_cum / taiex_cum.cummax()) - 1
+
     top_pct_str = f"{int(TOP_PCT * 100)}%"
     bottom_pct_str = f"{int(BOTTOM_PCT * 100)}%"
 
@@ -203,6 +226,8 @@ for g_day in GROUPING_DAYS:
     cum_returns['Winner'].plot(ax=ax1, label=f'Winner (Top {top_pct_str})', color='green', linewidth=2)
     cum_returns['Loser'].plot(ax=ax1, label=f'Loser (Bottom {bottom_pct_str})', color='red', linewidth=2)
     cum_returns['W_minus_L'].plot(ax=ax1, label='L/S Hedge (W - L)', color='blue', linestyle='--', linewidth=2)
+    # 將大盤設為灰色虛線，作為清晰的背景對照，避免視覺混亂
+    taiex_cum.plot(ax=ax1, label='TAIEX Benchmark', color='gray', linestyle='--', alpha=0.8, linewidth=1.5)
 
     ax1.set_title(f'Entry Strategy ({g_day_str}) with Performance & MDD', fontsize=16)
     ax1.set_ylabel('Cumulative Wealth (Log Scale)', fontsize=12)
@@ -214,12 +239,23 @@ for g_day in GROUPING_DAYS:
     drawdowns['Winner'].plot(ax=ax2, label='Winner MDD', color='green', linewidth=1, alpha=0.7)
     drawdowns['Loser'].plot(ax=ax2, label='Loser MDD', color='red', linewidth=1, alpha=0.7)
     drawdowns['W_minus_L'].plot(ax=ax2, label='L/S MDD', color='blue', linestyle='--', linewidth=1, alpha=0.7)
+    # taiex_dd.plot(ax=ax2, label='TAIEX MDD', color='black', alpha=0.4, linewidth=1) # 根據要求移除大盤 MDD
 
     ax2.fill_between(drawdowns.index, drawdowns['W_minus_L'], 0, color='blue', alpha=0.1)
     ax2.set_ylabel('Drawdown', fontsize=12)
     ax2.set_xlabel('Date', fontsize=12)
     ax2.legend(loc='lower left', fontsize=10)
     ax2.grid(True, linestyle='--', alpha=0.5)
+
+    # 標註股災背景 (灰色區塊)
+    for start, end in crash_periods:
+        # 確保灰色背景只出現在策略實際運行的時間範圍內，避免 X 軸被拉得太長
+        if end >= valid_res.index[0] and start <= valid_res.index[-1]:
+            actual_start = max(start, valid_res.index[0])
+            actual_end = min(end, valid_res.index[-1])
+            ax1.axvspan(actual_start, actual_end, color='gray', alpha=0.2)
+            ax2.axvspan(actual_start, actual_end, color='gray', alpha=0.2)
+
     plt.tight_layout()
 
     # --- 繪圖 (各年度平均月報酬率折線圖) ---
@@ -304,7 +340,7 @@ for g_day in GROUPING_DAYS:
             
         plt.tight_layout()
         # 儲存圖表，且不執行 plt.close() 讓它在最後能被顯示出來
-        fig_traj.savefig('ME_Event_Study_Trajectory.png', dpi=300, bbox_inches='tight')
+        fig_traj.savefig('event_study_intramonth_trajectory_ME.png', dpi=300, bbox_inches='tight')
 
     # ==========================================
 
@@ -331,13 +367,13 @@ for g_day in GROUPING_DAYS:
         'Avg_Winner_Holdings': avg_winner_holdings,
         'Avg_Loser_Holdings': avg_loser_holdings
     })
-    
-    # 如果是月底 (ME)，則將圖表輸出儲存並保留在畫面上，其餘天數則關閉避免洗版
+
+    # 將績效圖與 MDD 圖儲存 (僅輸出 ME)
     if g_day == 'ME':
-        fig.savefig('ME_cum_returns_and_MDD.png', dpi=300, bbox_inches='tight')
-    else:
-        plt.close(fig)
-        
+        fig.savefig(f'performance_and_mdd_{g_day_str}.png', dpi=300, bbox_inches='tight')
+
+    # 關閉迴圈中產生的圖表，避免最後一起顯示 (Event study 圖除外)
+    plt.close(fig)
     plt.close(fig3)
 
 print("\n所有測試記錄完成！")
@@ -408,6 +444,7 @@ plt.legend(loc='best', fontsize=10)
 plt.axhline(0, color='black', linewidth=1.2)
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
+plt.savefig('cagr_by_grouping_days.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製所有分組日的 Sharpe Ratio 比較圖
@@ -424,6 +461,7 @@ plt.legend(loc='best', fontsize=10)
 plt.axhline(0, color='black', linewidth=1.2)
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
+plt.savefig('sharpe_ratio_by_grouping_days.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製 Rolling Sharpe Ratio 比較圖 (僅顯示月底)
@@ -458,6 +496,7 @@ if 'Month_End' in rolling_sharpe_results and 'Month_End' in rolling_sortino_resu
     ax2.legend(loc='best', fontsize=10)
 
 plt.tight_layout()
+fig_sharpe.savefig('rolling_sharpe_sortino_ratios_ME.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製 Smoothed Rolling Sharpe Ratio 比較圖 (僅顯示月底)
@@ -493,6 +532,7 @@ if 'Month_End' in rolling_sharpe_results and 'Month_End' in rolling_sortino_resu
     ax_s2.legend(loc='best', fontsize=10)
 
 plt.tight_layout()
+fig_sharpe_smooth.savefig('smoothed_rolling_sharpe_sortino_ratios_ME.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製 Rolling Beta 比較圖 (僅顯示月底)
@@ -516,6 +556,7 @@ ax_beta.axhline(1, color='gray', linestyle='--', linewidth=1, alpha=0.5) # Marke
 ax_beta.grid(True, linestyle='--', alpha=0.5)
 ax_beta.legend(loc='best', fontsize=10)
 plt.tight_layout()
+fig_beta.savefig('rolling_beta_ME.png', dpi=300, bbox_inches='tight')
 
 # 一起顯示最後的總結圖
-plt.show()
+#plt.show()
