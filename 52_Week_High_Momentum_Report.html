@@ -272,6 +272,43 @@
             color: #3498db;
             font-weight: bold;
         }
+        
+        /* ====== 折疊表格樣式 ====== */
+        .expandable-table-wrapper {
+            position: relative;
+            max-height: 260px; /* 大約顯示前 4-5 行 */
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+            margin-bottom: 20px;
+        }
+        .expandable-table-wrapper.expanded {
+            max-height: 1500px; /* 足夠大的數值以顯示全部內容 */
+        }
+        .table-fade {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1) 80%);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 10px;
+            cursor: pointer;
+        }
+        .expandable-table-wrapper.expanded .table-fade {
+            display: none;
+        }
+        .table-collapse {
+            display: none;
+            text-align: center;
+            padding-bottom: 15px;
+            cursor: pointer;
+        }
+        .expandable-table-wrapper.expanded .table-collapse {
+            display: block;
+        }
 
     </style>
 </head>
@@ -296,7 +333,7 @@
 
         <section id="section1">
             <h2>一、 摘要 (Abstract)</h2>
-            <p>傳統動能投資策略（Momentum Investing）多依賴個股或產業過去的歷史報酬來預測未來走勢，然而此類策略常在長期出現反轉現象。本研究基於 George 與 Hwang (2004) 的研究框架，探討「52週高點（52-Week High）」因子是否在台灣上市櫃公司上一樣有作用。</p>
+            <p>傳統動能投資策略（Momentum Investing）多依賴個股或產業過去的歷史報酬來預測未來走勢，然而此類策略常在長期出現反轉現象。本研究基於 George 與 Hwang (2004) 的研究框架，探討「52週高點（52-Week High）」因子是否在台灣上市公司上一樣有作用。</p>
             <p>原論文指出，當股價接近 52 週高點時，投資人會產生「錨定效應（Anchoring Bias）」，對利多消息反應不足，從而產生具備持續性且長期不反轉的價格動能。考量到台股散戶比例較美股為高，市場非理性行為更為普遍，尤其在網路論壇上，投資人常因股價已高而卻步，因此預期錨定效應對台股投資人心理的影響將更為嚴重。</p>
             <p>本研究不僅於實證資料中重現該因子之有效性，更進一步擴展原論文框架，納入「月中不同交易日進場之穩定性測試」、「事件研究法（月中累積報酬軌跡）」以及「動態滾動風險指標（Rolling Sharpe / Beta）」，以驗證該因子在台股上的穩健性及曝險程度。</p>
         </section>
@@ -352,11 +389,48 @@
 
         <section id="section5">
             <h2>五、 資料分析 (Data Analysis)</h2>
-            <p><em>(註：此區塊為框架保留區，待後續探索性資料分析 EDA 完成後填補)</em></p>
-            <ol>
-                <li><strong>因子分佈檢定</strong>：分析 52 週高點比率在多頭與空頭市場中的橫截面分佈（偏態與峰度變化）。</li>
-                <li><strong>共線性與相關性分析</strong>：檢驗 52 週高點因子與大盤走勢、個股波動率之間的相關性。</li>
-                <li><strong>樣本存活率</strong>：探討 <code>MIN_PERIODS=252</code> 條件下，每月符合交易資格的股票檔數變化（Winner_Count 與 Loser_Count 的時間序列特徵）。</li>
+         <ol>
+                <li><strong>因子分佈檢定</strong>：分析 52 週高點比率在多頭與空頭市場中的橫截面分佈（偏態與峰度變化）。
+                    <table border='1' style='width:80%; border-collapse: collapse; text-align: center; margin-top: 15px; margin-bottom: 20px; font-size: 1.05rem; margin-left: auto; margin-right: auto;'>
+                        <tr style='background-color: #3498db; color: white;'><th>市場狀態</th><th>平均偏態</th><th>平均峰度</th></tr>
+                        <tr><td>多頭市場</td><td>-0.99</td><td>1.15</td></tr>
+                        <tr><td>空頭市場</td><td>-0.56</td><td>0.04</td></tr>
+                    </table>
+                </li>
+                <div style="text-align: center; margin: 30px 0; display: flex; flex-direction: column; gap: 30px;">
+                    <img src="./results/factor_distribution_bull_bear.png" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <p style="text-align: center; color: #7f8c8d; font-size: 0.95rem; margin-top: 10px;">（圖：藍線為（W - L）累積報酬圖）</p>
+                </div>
+                <li><strong>樣本存活率</strong>：探討每月符合交易資格的股票檔數變化（Winner_Count 與 Loser_Count 的時間序列特徵）。
+                    <div class="expandable-table-wrapper" id="survivalTableWrapper">
+                        <table border='1' style='width:80%; border-collapse: collapse; text-align: center; margin-top: 15px; margin-bottom: 20px; font-size: 1.05rem; margin-left: auto; margin-right: auto;'>
+                            <tr style='background-color: #3498db; color: white;'><th>年份 (Year)</th><th>做多組月均檔數 (Winner)</th><th>做空組月均檔數 (Loser)</th></tr>
+                            <tr><td>2010</td><td>438.7</td><td>438.7</td></tr>
+                            <tr><td>2011</td><td>459.8</td><td>459.8</td></tr>
+                            <tr><td>2012</td><td>487.6</td><td>487.6</td></tr>
+                            <tr><td>2013</td><td>503.7</td><td>503.7</td></tr>
+                            <tr><td>2014</td><td>517.9</td><td>517.9</td></tr>
+                            <tr><td>2015</td><td>528.9</td><td>528.9</td></tr>
+                            <tr><td>2016</td><td>543.0</td><td>543.0</td></tr>
+                            <tr><td>2017</td><td>554.5</td><td>554.5</td></tr>
+                            <tr><td>2018</td><td>564.5</td><td>564.5</td></tr>
+                            <tr><td>2019</td><td>569.7</td><td>569.7</td></tr>
+                            <tr><td>2020</td><td>576.5</td><td>576.5</td></tr>
+                            <tr><td>2021</td><td>585.7</td><td>585.7</td></tr>
+                            <tr><td>2022</td><td>596.4</td><td>596.4</td></tr>
+                            <tr><td>2023</td><td>611.7</td><td>611.7</td></tr>
+                            <tr><td>2024</td><td>627.3</td><td>627.3</td></tr>
+                            <tr><td>2025</td><td>647.1</td><td>647.1</td></tr>
+                            <tr><td>2026</td><td>666.3</td><td>666.3</td></tr>
+                        </table>
+                        <div class="table-fade" onclick="toggleTable('survivalTableWrapper')">
+                            <span style="background-color: #3498db; color: white; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">點擊展開完整表格 ▼</span>
+                        </div>
+                        <div class="table-collapse" onclick="toggleTable('survivalTableWrapper')">
+                            <span style="background-color: #3498db; color: white; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">點擊收起完整表格 ▲</span>
+                        </div>
+                    </div>
+                </li>
             </ol>
         </section>
 
@@ -433,8 +507,9 @@
         </section>
 
         <section id="section8">
-            <h2>八、 未來研究方向與限制 (Future Directions & Limitations)</h2>
+            <h2>八、 未來研究方向 (Future Directions)</h2>
             <ol>
+                <li><strong>樣本池 (Sample Pool)</strong>：此研究僅探討在台灣上市之普通股，未來可以考慮納入上櫃股票，觀察策略是否更好或更差。</li>
                 <li><strong>流動性與市值過濾</strong>：本回測尚未針對股票的日均成交值或市值進行分層。未來應加入價格或成交量濾網，以確保 Bottom 30% 的 Loser 組合在實務上具有足夠的融券放空額度。</li>
                 <li><strong>結合其他因子</strong>：探討 52 週高點因子是否能與價值因子（Value）或基本面盈餘動能（Earnings Momentum）結合，形成勝率更高的多因子模型。</li>
             </ol>
@@ -462,6 +537,11 @@
         function moveSlide(step) {
             const direction = step > 0 ? 'right' : 'left';
             showSlide(slideIndex + step, direction);
+        }
+    </script>
+    <script>
+        function toggleTable(wrapperId) {
+            document.getElementById(wrapperId).classList.toggle('expanded');
         }
     </script>
     <script>

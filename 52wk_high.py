@@ -383,6 +383,65 @@ for g_day in GROUPING_DAYS:
     plt.close(fig)
     plt.close(fig3)
 
+# ==========================================
+# 五、 資料分析 (Data Analysis)
+# (註：此區塊為框架保留區，待後續探索性資料分析 EDA 完成後填補)
+# ==========================================
+print("\n" + "="*80)
+print("====== 五、 資料分析 (Data Analysis) ======")
+print("="*80)
+
+print("1. 因子分佈檢定：分析 52 週高點比率在多頭與空頭市場中的橫截面分佈（偏態與峰度變化）")
+bear_mask = crash_mask.reindex(factor_df.index).fillna(False)
+bull_mask = ~bear_mask
+
+bull_factors = factor_df[bull_mask]
+bear_factors = factor_df[bear_mask]
+
+bull_skew = bull_factors.skew(axis=1).mean()
+bull_kurt = bull_factors.kurtosis(axis=1).mean()
+bear_skew = bear_factors.skew(axis=1).mean()
+bear_kurt = bear_factors.kurtosis(axis=1).mean()
+
+print(f"   - 多頭市場平均偏態: {bull_skew:.2f}, 平均峰度: {bull_kurt:.2f}")
+print(f"   - 空頭市場平均偏態: {bear_skew:.2f}, 平均峰度: {bear_kurt:.2f}")
+
+fig_dist, ax_dist = plt.subplots(figsize=(10, 6))
+bull_vals = bull_factors.to_numpy().flatten()
+bull_vals = bull_vals[~np.isnan(bull_vals)]
+bear_vals = bear_factors.to_numpy().flatten()
+bear_vals = bear_vals[~np.isnan(bear_vals)]
+ax_dist.hist(bull_vals, bins=50, alpha=0.5, label='Bull Market', color='green', density=True)
+ax_dist.hist(bear_vals, bins=50, alpha=0.5, label='Bear Market', color='red', density=True)
+ax_dist.set_title('52-Week High Factor Distribution: Bull vs Bear Markets', fontsize=14)
+ax_dist.set_xlabel('Factor Value (Price / 52-Week High)', fontsize=12)
+ax_dist.set_ylabel('Density', fontsize=12)
+ax_dist.legend(loc='upper left')
+ax_dist.grid(True, linestyle='--', alpha=0.6)
+plt.tight_layout()
+fig_dist.savefig('./results/factor_distribution_bull_bear.png', dpi=300, bbox_inches='tight')
+plt.close(fig_dist)
+print("   - 已繪製因子分佈比較圖並儲存至 ./results/factor_distribution_bull_bear.png")
+
+print("\n2. 樣本存活率 (Sample Survival Rate)：每月符合交易資格的股票檔數變化")
+# 擷取最後一次分組 (Month_End) 的持倉檔數，計算每月的平均值
+monthly_counts = strategy_daily_ret[['Winner_Count', 'Loser_Count']].dropna().resample('ME').mean()
+
+# 將每月的資料依年度分組計算平均，便於終端機顯示總結
+yearly_summary = monthly_counts.groupby(monthly_counts.index.year).mean()
+yearly_summary.columns = ['Avg_Monthly_Winner', 'Avg_Monthly_Loser']
+yearly_summary.index.name = 'Year'
+
+print("\n[各年度平均每月符合資格檔數 (Time Series Summary)]")
+print(yearly_summary.to_string(float_format='{:.1f}'.format))
+
+# 儲存完整的月度時間序列資料至 CSV
+monthly_counts.index.name = 'Month'
+monthly_counts.to_csv('./results/monthly_survival_rate.csv', float_format='%.1f')
+print("   - 已輸出詳細的「月度」樣本存活率表格至 ./results/monthly_survival_rate.csv")
+
+print("="*80 + "\n")
+
 print("\n所有測試記錄完成！")
 
 summary_df = pd.DataFrame(summary_metrics).set_index('Grouping_Day')
