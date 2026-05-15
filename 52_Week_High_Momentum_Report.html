@@ -37,7 +37,7 @@
             padding-bottom: 10px;
             border-bottom: 2px solid #3498db;
         }
-
+        
         nav.sidebar ul {
             list-style: none;
             padding: 0;
@@ -145,6 +145,134 @@
                 padding: 30px 20px;
             }
         }
+
+
+        /* 讓網頁上所有圖片都不會超過父容器 */
+        img {
+            max-width: 70%;
+            height: auto;
+            display: block;
+            margin: 0 auto; /* 讓圖片水平置中 */
+        }
+
+        /* 如果只想針對清單內的圖片 */
+        ul img {
+            display: block;    /* 讓圖片獨佔一行，避免與文字擠在一起 */
+            margin: 15px auto; /* 增加上下間距並水平置中 */
+            border-radius: 4px; /* 可選：加一點圓角讓視覺更柔和 */
+        }
+
+        /* ====== 圖片輪播圖 (Carousel) ====== */
+        .carousel-container {
+            position: relative;
+            max-width: 70%; 
+            margin: 20px auto; 
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .carousel-slide {
+            display: none; /* 預設隱藏，透過 active class 顯示 */
+            padding: 20px 40px; /* 左右留出空間給箭頭 */
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .carousel-slide.active,
+        .carousel-slide.slide-in-right,
+        .carousel-slide.slide-in-left {
+            display: block;
+        }
+
+        .carousel-slide.slide-in-right {
+            animation: slideInRight 0.4s ease-out forwards;
+        }
+
+        .carousel-slide.slide-in-left {
+            animation: slideInLeft 0.4s ease-out forwards;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .slide-title {
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .carousel-slide img {
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .carousel-btn {
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            color: white;
+            font-size: 20px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border: none;
+            border-radius: 50%;
+            transition: 0.3s ease;
+            user-select: none;
+            z-index: 2;
+        }
+
+        .carousel-btn:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .carousel-btn.prev {
+            left: 10px;
+        }
+
+        .carousel-btn.next {
+            right: 10px;
+        }
+        section {
+          margin-bottom: 80px; /* 段落間距加大 */
+        }
+
+        h2 {
+            margin-top: 5rem;
+            padding-left: 15px;
+            border-left: 5px solid #3498db; /* 加入左側裝飾線條，強化章節感 */
+            background: linear-gradient(to right, #f8fbfe, transparent); /* 淡淡的底色漸層 */
+        }
+
+        p {
+            color: #4a5568; /* 使用深灰色而非純黑，減輕眼睛疲勞 */
+            margin-bottom: 1.5rem;
+        }
+
+        html {
+            scroll-behavior: smooth; /* 點擊目錄時平滑滑動 */
+        }
+
+        nav.sidebar a.active {
+            background-color: #eaf2f8;
+            color: #3498db;
+            font-weight: bold;
+        }
+
     </style>
 </head>
 <body>
@@ -207,7 +335,7 @@
 
             <h3>3. 進場機制與成本設定 (Execution & Transaction Costs)</h3>
             <ul>
-                <li><strong>進場日敏感度分析（Grouping Days）</strong>：本研究主要以原論文提出的月底進場回測結果為主。然而，為檢驗因子是否僅受月底機構作帳（Window Dressing）影響，亦額外測試了每月第 5、10、15、20、25 個交易日不同選股觀測日。所有進場均於觀測日之「次一交易日」以收盤價執行。</li>
+                <li><strong>進場日敏感度分析（Grouping Days）</strong>：本研究主要以原論文提出的月底進場回測結果為主。然而，為檢驗因子是否僅受月底機構作帳（Window Dressing）影響，亦額外測試了每月第 5、10、15、20 個交易日不同選股觀測日。所有進場均於觀測日之「次一交易日」以收盤價執行。</li>
                 <li><strong>交易成本</strong>：嚴格設定 <code>COST_RATE = 0.001425</code>（即千分之1.425），且於每次換倉的「期初進場」與「期末出場」各扣除一次，以真實反映台股市場的摩擦成本。</li>
                 <li><strong>無風險利率 (Risk-Free Rate)</strong>：為簡化計算，本研究設定無風險利率 <code>R<sub>f</sub> = 0</code>，用於夏普比率與索提諾比率等風險調整後報酬指標的計算。</li>
             </ul>
@@ -236,19 +364,56 @@
             <h2>六、 回測結果 (Backtest Results)</h2>
             <h3>1. 核心績效與風險指標 (Performance & Risk Metrics)</h3>
             <ul>
-                <li><strong>總報酬與年化報酬 (CAGR)</strong>：比較 Winner、Loser 與 W-L 對沖組合的長期複利增長。預期 Winner 組合將顯著擊敗 Loser 組合，且 W-L 將創造穩定的正向收益。</li>
-                <li><strong>夏普比率 (Sharpe Ratio)</strong>：評估承擔每單位總風險（標準差）所獲得的超額報酬，計算方式為 <span class="math">(R<sub>p</sub> - R<sub>f</sub> ) / σ<sub>p</sub></span>，其中 <span class="math">R<sub>p</sub></span> 為投資組合平均報酬，<span class="math">R<sub>f</sub></span> 為無風險利率，<span class="math">σ<sub>p</sub></span> 為投資組合報酬標準差。</li>
-                <li><strong>索提諾比率 (Sortino Ratio)</strong>：評估承擔每單位下行風險（下行標準差）所獲得的超額報酬，計算方式為 <span class="math">(R<sub>p</sub> - R<sub>f</sub> ) / DR</span>，其中 <span class="math">R<sub>p</sub></span> 為投資組合平均報酬，<span class="math">R<sub>f</sub></span> 為無風險利率，<span class="math">DR</span> 為投資組合報酬的下行標準差。</li>
-                <li><strong>最大回撤 (MDD)</strong>：衡量多空對沖組合（W-L）從資產最高價值跌至最低價值時的「最大虧損幅度」，為計算下行風險的另一指標。</li>
+                <li>本次研究主要評判績效的四大指標：</li>
+                <ul>
+                    <li><strong>總報酬與年化報酬 (CAGR)</strong>：比較 Winner、Loser 與 W-L 對沖組合的長期複利增長。預期 Winner 組合將顯著擊敗 Loser 組合，且 W-L 將創造穩定的正向收益。</li>
+                    <li><strong>夏普比率 (Sharpe Ratio)</strong>：評估承擔每單位總風險（標準差）所獲得的超額報酬，計算方式為 <span class="math">(R<sub>p</sub> - R<sub>f</sub> ) / σ<sub>p</sub></span>，其中 <span class="math">R<sub>p</sub></span> 為投資組合平均報酬，<span class="math">R<sub>f</sub></span> 為無風險利率，<span class="math">σ<sub>p</sub></span> 為投資組合報酬標準差。</li>
+                    <li><strong>索提諾比率 (Sortino Ratio)</strong>：評估承擔每單位下行風險（下行標準差）所獲得的超額報酬，計算方式為 <span class="math">(R<sub>p</sub> - R<sub>f</sub> ) / DR</span>，其中 <span class="math">R<sub>p</sub></span> 為投資組合平均報酬，<span class="math">R<sub>f</sub></span> 為無風險利率，<span class="math">DR</span> 為投資組合報酬的下行標準差。</li>
+                    <li><strong>最大回撤 (MDD)</strong>：衡量多空對沖組合（W-L）從資產最高價值跌至最低價值時的「最大虧損幅度」，為計算下行風險的另一指標。</li>
+                </ul>
+                    <li><strong>以月底（Month End）進場為基準</strong>，根據回測多空對沖組合（W-L）在此期間展現了穩健的獲利能力。年化報酬率（CAGR）達到了 9.89%，且其承擔的風險相對可控，夏普比率（Sharpe Ratio）為 0.99。即便在市場出現大幅震盪的時期，該對沖組合的最大回撤（MDD）依然能有效控制在 -21.89%，顯示出良好的下檔保護能力。以下為各年度平均月報酬率明細與長期的累積報酬圖（圖片灰色底代表該段時間台灣加權指數回撤 > 15% 以上的時段）：</li>
+            <table border='1' style='width:100%; border-collapse: collapse; text-align: center; margin-top: 10px; margin-bottom: 20px; font-size: 1.05rem;'><tr style='background-color: #3498db; color: white;'><th>年份</th><th>Winner</th><th>Loser</th><th>W-L</th></tr><tr><td>2010</td><td>2.71%</td><td>0.69%</td><td>1.53%</td></tr><tr><td>2011</td><td>-1.77%</td><td>-3.94%</td><td>1.69%</td></tr><tr><td>2012</td><td>3.29%</td><td>0.96%</td><td>2.02%</td></tr><tr><td>2013</td><td>2.68%</td><td>1.33%</td><td>0.80%</td></tr><tr><td>2014</td><td>1.03%</td><td>0.81%</td><td>-0.28%</td></tr><tr><td>2015</td><td>-0.16%</td><td>-1.35%</td><td>0.75%</td></tr><tr><td>2016</td><td>0.91%</td><td>-0.15%</td><td>0.51%</td></tr><tr><td>2017</td><td>2.02%</td><td>0.34%</td><td>1.11%</td></tr><tr><td>2018</td><td>-0.00%</td><td>-1.26%</td><td>0.85%</td></tr><tr><td>2019</td><td>1.72%</td><td>0.81%</td><td>0.38%</td></tr><tr><td>2020</td><td>2.52%</td><td>1.76%</td><td>0.48%</td></tr><tr><td>2021</td><td>2.54%</td><td>1.64%</td><td>0.32%</td></tr><tr><td>2022</td><td>-0.20%</td><td>-1.26%</td><td>0.59%</td></tr><tr><td>2023</td><td>2.89%</td><td>1.65%</td><td>0.68%</td></tr><tr><td>2024</td><td>1.85%</td><td>-0.05%</td><td>1.30%</td></tr><tr><td>2025</td><td>0.64%</td><td>0.09%</td><td>-0.08%</td></tr><tr><td>2026</td><td>4.13%</td><td>1.07%</td><td>2.40%</td></tr></table>
+      
+            <div style="text-align: center; margin: 30px 0; display: flex; flex-direction: column; gap: 30px;">
+                <img src="./results/performance_and_mdd_Month_End.png" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <p style="text-align: center; color: #7f8c8d; font-size: 0.95rem; margin-top: 10px;">（圖：藍線為（W - L）累積報酬圖）</p>
+            </div>
+
             </ul>
 
             <h3>2. 進場日穩健性測試 (Entry Day Robustness)</h3>
-            <p>透過彙總比較不同 <code>GROUPING_DAYS</code> (5, 10, 15, 20, 月底) 的 CAGR 與 Sharpe Ratio。若各日期的績效指標呈現水平且穩定的結果，即可證明 52 週高點的「錨定效應」是持續存在於市場心理中的穩健現象，而非特定日期的流動性異常。</p>
+            <p>為了驗證該因子是否僅受限於月底法人作帳效應（Window Dressing），我們進一步測試了不同交易日（5, 10, 15, 20, 月底）進場的表現。結果顯示，無論在哪個日期進場，多空組合皆能穩定維持正向報酬與相似的夏普表現。其中，在月中進場甚至能取得與月底相當或更優的結果。這項「進場日不敏感」的特徵，強力支持了 52 週高點因子背後的「心理錨定效應」是持續存在於市場中的客觀規律。</p>
+            <table border='1' style='width:100%; border-collapse: collapse; text-align: center; margin-top: 10px; margin-bottom: 20px; font-size: 1.05rem;'><tr style='background-color: #3498db; color: white;'><th>進場日 (Day)</th><th>CAGR (Winner)</th><th>CAGR (W-L)</th><th>Sharpe (W-L)</th><th>MDD (W-L)</th></tr><tr><td>5</td><td>18.22%</td><td>10.19%</td><td>1.11</td><td>-21.68%</td></tr><tr><td>10</td><td>18.35%</td><td>10.61%</td><td>1.24</td><td>-22.27%</td></tr><tr><td>15</td><td>17.23%</td><td>8.85%</td><td>1.04</td><td>-21.87%</td></tr><tr><td>20</td><td>17.86%</td><td>9.41%</td><td>1.12</td><td>-21.66%</td></tr><tr><td>Month_End</td><td>18.67%</td><td>9.89%</td><td>0.99</td><td>-21.89%</td></tr></table>
+            <div style="text-align: center; margin: 30px 0; display: flex; flex-direction: column; gap: 30px;">
+                <div>
+                    <img src="./results/cagr_by_grouping_days.png" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <p style="text-align: center; color: #7f8c8d; font-size: 0.95rem; margin-top: 10px;">（圖：不同進場日之 CAGR 比較）</p>
+                </div>
+                <div>
+                    <img src="./results/sharpe_ratio_by_grouping_days.png" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    <p style="text-align: center; color: #7f8c8d; font-size: 0.95rem; margin-top: 10px;">（圖：不同進場日之夏普比率比較）</p>
+                </div>
+            </div>
 
             <h3>3. 動態風險追蹤 (Rolling Metrics)</h3>
             <ul>
-                <li><strong>252-Day Rolling Sharpe / Sortino</strong>：觀察策略在不同市場週期（牛/熊市）中的績效穩定度，並透過 60 天平滑處理（Smoothed）消除短期雜訊。</li>
-                <li><strong>252-Day Rolling Beta</strong>：檢驗多空對沖組合（W-L）是否真正達到了市場中立（Market Neutral），即 Beta 值是否穩定圍繞於 0 附近。</li>
+                <li><strong>252-Day Rolling Sharpe / Sortino</strong>：觀察策略在不同市場週期（牛/熊市）中的績效穩定度，並透過 60 天平滑處理（Smoothed）消除短期雜訊。在我們研究發現，滾動夏普與索提諾比率也顯示出策略在經歷幾次市場多空循環後，依然能維持強韌的相對獲利優勢。</li>
+                
+                <div class="carousel-container">
+                    <div class="carousel-slide active">
+                        <div class="slide-title">Smoothed (60天平滑處理)</div>
+                        <img src="./results/smoothed_rolling_sharpe_sortino_ratios_ME.png" alt="Smoothed 滾動夏普與索提諾比率">
+                    </div>
+                    <div class="carousel-slide">
+                        <div class="slide-title">Unsmoothed (未平滑)</div>
+                        <img src="./results/rolling_sharpe_sortino_ratios_ME.png" alt="Unsmoothed 滾動夏普與索提諾比率">
+                    </div>
+                    <button class="carousel-btn prev" onclick="moveSlide(-1)">&#10094;</button>
+                    <button class="carousel-btn next" onclick="moveSlide(1)">&#10095;</button>
+                </div>
+                
+                <li><strong>252-Day Rolling Beta</strong>：檢驗多空對沖組合（W-L）是否真正達到了市場中立（Market Neutral），即 Beta 值是否穩定圍繞於 0 附近。在本次研究中，多空對沖組合（W-L）的252 日滾動 Beta 走勢長期穩定圍繞在 0 軸附近，證明該策略的確排除了大盤的系統性風險（Market Neutral）</li>
+                <img src="./results/rolling_beta_ME.png">
             </ul>
         </section>
 
@@ -256,21 +421,75 @@
             <h2>七、 額外測試：事件研究法與持倉優化 (Additional Tests: Event Study)</h2>
             <p>本研究程式碼特別針對「月底進場（ME）」加入了<strong>月中累積報酬軌跡（Intramonth Trajectory）</strong>的事件研究分析：</p>
             <ul>
-                <li><strong>研究目的</strong>：探討動能效應在進場後的 1~22 個交易日內是如何發酵的。</li>
-                <li><strong>衡量方式</strong>：記錄每次進場後第 1 天至第 22 天的「未扣除交易成本原始平均報酬」。</li>
+                <li><strong>研究目的</strong>：探討動能效應在進場後的第一日到出場日是如何發酵的。</li>
+                <li><strong>衡量方式</strong>：記錄每次進場後第 1 天至出場日的「未扣除交易成本原始平均報酬」。</li>
                 <li><strong>預期發現與應用</strong>：若 W-L 的超額報酬主要集中在進場後的前 5 或前 10 天（曲線在此後斜率趨緩或走平），這暗示實務上我們可能<strong>不需要持有滿一整個月</strong>。投資人可藉由提早獲利了結（縮短 Holding Period）來提高資金週轉率（Capital Efficiency）並降低市場曝險。</li>
+                <div style="text-align: center; margin: 30px 0; display: flex; flex-direction: column; gap: 30px;">
+                    <img src="./results/event_study_intramonth_trajectory_ME.png" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <p style="text-align: center; color: #7f8c8d; font-size: 0.95rem; margin-top: 10px;">（圖：藍線為（W - L）平均 22 日累積報酬）</p>
+            </div>
+                <li><strong>實測結果與發現</strong>：透過檢視 22 日累積報酬軌跡圖，我們發現做多組合（Winner）與多空對沖組合（W-L）在整個持有月內，皆呈現穩定且持續向上的斜率。這表示股價對 52 週高點資訊的消化過程是漸進的，並沒有在進場後前幾天就迅速見頂然後停滯。因此，這證明了實務上我們「維持持有滿一個月」的設定是合理且能完整捕捉動能溢酬的，無需過度擔憂短線的提前反轉。</li>
             </ul>
         </section>
 
         <section id="section8">
             <h2>八、 未來研究方向與限制 (Future Directions & Limitations)</h2>
             <ol>
-                <li><strong>(6,6) 重疊投資組合測試</strong>：目前程式碼實作為 (1,1) 策略，即每月全數換倉。未來可擴展為原論文採用的 (6,6) 重疊投資組合（Overlapping Portfolios），以降低單月換手率與交易成本對 W-L 組合的雙重侵蝕。</li>
                 <li><strong>流動性與市值過濾</strong>：本回測尚未針對股票的日均成交值或市值進行分層。未來應加入價格或成交量濾網，以確保 Bottom 30% 的 Loser 組合在實務上具有足夠的融券放空額度。</li>
                 <li><strong>結合其他因子</strong>：探討 52 週高點因子是否能與價值因子（Value）或基本面盈餘動能（Earnings Momentum）結合，形成勝率更高的多因子模型。</li>
             </ol>
         </section>
     </main>
 
+    <!-- 載入輪播圖功能的 JavaScript -->
+    <script>
+        let slideIndex = 0;
+        const slides = document.querySelectorAll('.carousel-slide');
+
+        function showSlide(index, direction) {
+            slides.forEach(slide => slide.classList.remove('active', 'slide-in-right', 'slide-in-left'));
+            slideIndex = (index + slides.length) % slides.length; // 確保索引在合理範圍內循環
+            
+            if (direction === 'right') {
+                slides[slideIndex].classList.add('slide-in-right');
+            } else if (direction === 'left') {
+                slides[slideIndex].classList.add('slide-in-left');
+            } else {
+                slides[slideIndex].classList.add('active'); // 處理初始載入（無動畫）
+            }
+        }
+
+        function moveSlide(step) {
+            const direction = step > 0 ? 'right' : 'left';
+            showSlide(slideIndex + step, direction);
+        }
+    </script>
+    <script>
+        // 簡易 ScrollSpy：捲動時自動點亮對應的導覽列項目
+        window.addEventListener('scroll', event => {
+            let fromTop = window.scrollY + 50;
+            let menuLinks = document.querySelectorAll('nav.sidebar a');
+            
+            menuLinks.forEach(link => {
+                let section = document.querySelector(link.hash);
+                if (
+                    section.offsetTop <= fromTop &&
+                    section.offsetTop + section.offsetHeight > fromTop
+                ) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        });
+
+        // 點擊後立即手動加上 active class 提升反應力
+        document.querySelectorAll('nav.sidebar a').forEach(link => {
+            link.addEventListener('click', function() {
+                document.querySelectorAll('nav.sidebar a').forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
 </body>
 </html>

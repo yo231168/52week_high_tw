@@ -1,6 +1,10 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+
+# 建立輸出資料夾
+os.makedirs('./results', exist_ok=True)
 
 ROLLING_WINDOW = 252
 MIN_PERIODS = 252
@@ -72,9 +76,9 @@ for g_day in GROUPING_DAYS:
     grouping_dates = grouping_dates[:len(entry_dates)]
 
     # 將分組日與進場日印出至終端機方便查看
-    df_dates = pd.DataFrame({'Grouping_Date': grouping_dates, 'Entry_Date': entry_dates})
-    print(f"\n[{g_day_str}] 分組日與進場日清單：")
-    print(df_dates.to_string(index=False))
+    #df_dates = pd.DataFrame({'Grouping_Date': grouping_dates, 'Entry_Date': entry_dates})
+    #print(f"\n[{g_day_str}] 分組日與進場日清單：")
+    #print(df_dates.to_string(index=False))
 
     # 3. 初始化存放策略每日報酬的 DataFrame
     strategy_daily_ret = pd.DataFrame(index=data.index, columns=['Winner', 'Loser', 'W_minus_L', 'Winner_Count', 'Loser_Count'], dtype=float)
@@ -211,6 +215,9 @@ for g_day in GROUPING_DAYS:
     print((annual_mean_returns * 100).apply(lambda col: col.map(lambda x: f"{x:.2f}%")).to_string())
     print("===============================\n")
 
+    if g_day == 'ME':
+        (annual_mean_returns * 100).to_csv('./results/各年度平均月報酬率.csv', float_format='%.2f%%')
+
     # --- 繪圖 (包含 MDD Subplot) ---
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
 
@@ -340,7 +347,7 @@ for g_day in GROUPING_DAYS:
             
         plt.tight_layout()
         # 儲存圖表，且不執行 plt.close() 讓它在最後能被顯示出來
-        fig_traj.savefig('event_study_intramonth_trajectory_ME.png', dpi=300, bbox_inches='tight')
+        fig_traj.savefig('./results/event_study_intramonth_trajectory_ME.png', dpi=300, bbox_inches='tight')
 
     # ==========================================
 
@@ -370,7 +377,7 @@ for g_day in GROUPING_DAYS:
 
     # 將績效圖與 MDD 圖儲存 (僅輸出 ME)
     if g_day == 'ME':
-        fig.savefig(f'performance_and_mdd_{g_day_str}.png', dpi=300, bbox_inches='tight')
+        fig.savefig(f'./results/performance_and_mdd_{g_day_str}.png', dpi=300, bbox_inches='tight')
 
     # 關閉迴圈中產生的圖表，避免最後一起顯示 (Event study 圖除外)
     plt.close(fig)
@@ -379,6 +386,8 @@ for g_day in GROUPING_DAYS:
 print("\n所有測試記錄完成！")
 
 summary_df = pd.DataFrame(summary_metrics).set_index('Grouping_Day')
+
+summary_df.to_csv('./results/summary_df.csv', float_format='%.2f')
 
 print("\n" + "="*80)
 print("====== 策略績效總結報告 ======")
@@ -444,7 +453,7 @@ plt.legend(loc='best', fontsize=10)
 plt.axhline(0, color='black', linewidth=1.2)
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.savefig('cagr_by_grouping_days.png', dpi=300, bbox_inches='tight')
+plt.savefig('./results/cagr_by_grouping_days.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製所有分組日的 Sharpe Ratio 比較圖
@@ -461,7 +470,7 @@ plt.legend(loc='best', fontsize=10)
 plt.axhline(0, color='black', linewidth=1.2)
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.savefig('sharpe_ratio_by_grouping_days.png', dpi=300, bbox_inches='tight')
+plt.savefig('./results/sharpe_ratio_by_grouping_days.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製 Rolling Sharpe Ratio 比較圖 (僅顯示月底)
@@ -496,7 +505,7 @@ if 'Month_End' in rolling_sharpe_results and 'Month_End' in rolling_sortino_resu
     ax2.legend(loc='best', fontsize=10)
 
 plt.tight_layout()
-fig_sharpe.savefig('rolling_sharpe_sortino_ratios_ME.png', dpi=300, bbox_inches='tight')
+fig_sharpe.savefig('./results/rolling_sharpe_sortino_ratios_ME.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製 Smoothed Rolling Sharpe Ratio 比較圖 (僅顯示月底)
@@ -532,7 +541,7 @@ if 'Month_End' in rolling_sharpe_results and 'Month_End' in rolling_sortino_resu
     ax_s2.legend(loc='best', fontsize=10)
 
 plt.tight_layout()
-fig_sharpe_smooth.savefig('smoothed_rolling_sharpe_sortino_ratios_ME.png', dpi=300, bbox_inches='tight')
+fig_sharpe_smooth.savefig('./results/smoothed_rolling_sharpe_sortino_ratios_ME.png', dpi=300, bbox_inches='tight')
 
 # ==========================================
 # 繪製 Rolling Beta 比較圖 (僅顯示月底)
@@ -556,7 +565,7 @@ ax_beta.axhline(1, color='gray', linestyle='--', linewidth=1, alpha=0.5) # Marke
 ax_beta.grid(True, linestyle='--', alpha=0.5)
 ax_beta.legend(loc='best', fontsize=10)
 plt.tight_layout()
-fig_beta.savefig('rolling_beta_ME.png', dpi=300, bbox_inches='tight')
+fig_beta.savefig('./results/rolling_beta_ME.png', dpi=300, bbox_inches='tight')
 
 # 一起顯示最後的總結圖
 #plt.show()
